@@ -1,0 +1,24 @@
+- hosts: all
+  
+
+- hosts: dns
+  vars:
+    cluster_domain: apollo-prod.bah.com
+  tasks:
+    - set_fact:
+        ip4_cluster_subnet_reverse: "{{ (ip4_cluster_subnet.split ".").reverse.join "." }}"
+    - name: install dns
+      yum: pkg=bind state=latest
+      with_items:
+        - bind-chroot
+    - name: write bind configuration
+      template: src = "templates/named.conf.j2" dest = "/etc/named.conf"
+      with_items:
+        - ["templates/cluster_domain.zone.j2", "/etc/named/${cluster_domain}.zone"]
+      notify: restart bind
+    - name: enable bind on boot
+      service: name=named enabled=yes
+  handlers:
+    - name: restart bind
+      service: name=named state=restarted
+
